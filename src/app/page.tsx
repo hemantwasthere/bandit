@@ -50,10 +50,23 @@ export default function Home() {
     });
   };
 
-  const { isLoading: isConfirming, isSuccess: isConfirmed } =
-    useWaitForTransactionReceipt({
-      hash,
-    });
+  const {
+    isLoading: isConfirming,
+    isSuccess: isConfirmed,
+    isError: isFailed,
+  } = useWaitForTransactionReceipt({
+    hash,
+  });
+
+  useEffect(() => {
+    if (isConfirming)
+      toast.info("Waiting for transaction to confirm...", {
+        id: "tx",
+        dismissible: false,
+      });
+    if (isConfirmed) toast.success("Transaction confirmed", { id: "tx" });
+    if (isFailed) toast.error("Transaction failed", { id: "tx" });
+  }, [isConfirmed, isConfirming, isFailed]);
 
   useEffect(() => {
     setIsMounted(true);
