@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { sepolia } from "viem/chains";
 import { useAccount, useBalance, useConnect, useWriteContract } from "wagmi";
-import { injected } from "wagmi/connectors";
 
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";

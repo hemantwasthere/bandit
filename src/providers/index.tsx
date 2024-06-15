@@ -23,11 +23,11 @@ const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!;
 const metadata = {
   name: "Bandit",
   description: "AppKit Example",
-  url: "https://web3modal.com", // origin must match your domain & subdomain
+  url: "http://localhost:3000", // origin must match your domain & subdomain
   icons: ["https://avatars.githubusercontent.com/u/37784886"],
 };
 
-const chains = [mainnet, sepolia] as const;
+const chains = [sepolia, mainnet] as const;
 const config = defaultWagmiConfig({
   chains,
   projectId,
@@ -60,7 +60,6 @@ export default function Providers({ children }: { children: React.ReactNode }) {
               },
             }}
           />
-
           {children}
         </ConnectKitProvider>
       </QueryClientProvider>
