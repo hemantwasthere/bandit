@@ -1,6 +1,7 @@
 "use client";
 
 import { ConnectKitButton } from "connectkit";
+import { CopyIcon } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -15,7 +16,6 @@ import {
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CopyIcon } from "lucide-react";
 
 export default function Home() {
   const [transferAmount, setTransferAmount] = useState("");
@@ -29,6 +29,7 @@ export default function Home() {
   const { data } = useBalance({
     address: address,
   });
+
   const accountBalance = data?.formatted;
 
   const handleTransfer = async () => {
