@@ -4,25 +4,27 @@ import { ConnectKitButton } from "connectkit";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { sepolia } from "viem/chains";
-import { useAccount, useBalance, useConnect, useWriteContract } from "wagmi";
+import { parseEther } from "viem";
+import {
+  useAccount,
+  useBalance,
+  useSendTransaction,
+  useWaitForTransactionReceipt,
+} from "wagmi";
 
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CopyIcon } from "lucide-react";
 
 export default function Home() {
   const [transferAmount, setTransferAmount] = useState("");
   const [receiverAddress, setReceiverAddress] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [started, setStarted] = useState(false);
-  const [errors, setErrors] = useState("");
-  const [completed, setCompleted] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
-  const { connectAsync } = useConnect();
   const { address, isConnected } = useAccount();
-  const { writeContractAsync } = useWriteContract();
+
+  const { data: hash, sendTransaction, isPending } = useSendTransaction();
 
   const { data } = useBalance({
     address: address,
@@ -38,42 +40,20 @@ export default function Home() {
       return toast.error("Please enter an amount to transfer");
     }
 
-    try {
-      // if (!address) {
-      //   await connectAsync({ chainId: sepolia.id, connector: injected() });
-      // }
-
-      const data = await writeContractAsync({
-        chainId: sepolia.id,
-        address: `0x${
-          receiverAddress.includes("0x")
-            ? receiverAddress.slice(2)
-            : receiverAddress
-        }`, // change to recipient address
-        functionName: "transfer",
-        abi: [
-          {
-            inputs: [
-              { internalType: "address", name: "recipient", type: "address" },
-              { internalType: "uint256", name: "amount", type: "uint256" },
-            ],
-            name: "transfer",
-            outputs: [{ internalType: "bool", name: "", type: "bool" }],
-            stateMutability: "nonpayable",
-            type: "function",
-          },
-        ],
-        args: [receiverAddress, parseInt(transferAmount) * 1000000],
-      });
-
-      console.log(data);
-      setCompleted(true);
-    } catch (err) {
-      console.log(err);
-    }
+    sendTransaction({
+      to: `0x${
+        receiverAddress.includes("0x")
+          ? receiverAddress.slice(2)
+          : receiverAddress
+      }`,
+      value: parseEther(transferAmount),
+    });
   };
 
-  // 0x041e918230046462f29643d2FFe0e191531154fc
+  const { isLoading: isConfirming, isSuccess: isConfirmed } =
+    useWaitForTransactionReceipt({
+      hash,
+    });
 
   useEffect(() => {
     setIsMounted(true);
@@ -114,7 +94,7 @@ export default function Home() {
               className="border-none outline-none placeholder:text-gray-500 text-black text-lg focus-visible:ring-0 focus-visible:ring-offset-0 font-semibold placeholder:font-medium bg-[#fadfb5]"
               placeholder="Recipient Address"
               type="text"
-              disabled={loading}
+              disabled={isPending}
             />
           </div>
 
@@ -125,11 +105,11 @@ export default function Home() {
               className="border-none outline-none placeholder:text-gray-500 text-black text-xl focus-visible:ring-0 focus-visible:ring-offset-0 font-semibold placeholder:font-medium bg-[#fadfb5]"
               placeholder="0.0"
               type="number"
-              disabled={loading}
+              disabled={isPending}
             />
 
             <button
-              disabled={loading}
+              disabled={isPending}
               onClick={() => {
                 if (!isConnected) {
                   toast.error("Please connect your wallet first");
@@ -141,20 +121,9 @@ export default function Home() {
             </button>
           </div>
 
-          <div className="mt-5 w-full text-xs space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="text-gray-500 uppercase">Protocol Fee</p>
-              <p>0.01 %</p>
-            </div>
-            <div className="flex items-center justify-between">
-              <p className="text-gray-500 uppercase">APR</p>
-              <p>3.45 %</p>
-            </div>
-          </div>
-
           {isConnected ? (
             <Button
-              disabled={loading}
+              disabled={isPending}
               onClick={handleTransfer}
               className="mt-5 rounded-xl w-full h-[52px] text-lg font-medium bg-[#9b923b] hover:bg-[#a99f44] text-white/90 transition-all uppercase ring-offset-[#fadfb5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mainBg focus-visible:ring-offset-2"
             >
@@ -173,6 +142,31 @@ export default function Home() {
                 );
               }}
             </ConnectKitButton.Custom>
+          )}
+
+          {hash && (
+            <div className="mt-5 w-full text-xs space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-gray-500 uppercase">Transaction Hash</p>
+                <div className="flex items-center justify-center gap-2">
+                  {hash.slice(0, 6) + "..." + hash.slice(hash.length - 4)}
+                  <CopyIcon
+                    className="h-3 w-3 cursor-pointer border-[#9A913B]"
+                    onClick={() => {
+                      navigator.clipboard.writeText(hash);
+                      toast.success("Copied to clipboard");
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <p className="text-gray-500 uppercase">Status</p>
+                <p>
+                  {isConfirming && "Waiting for confirmation..."}
+                  {isConfirmed && "Transaction confirmed"}
+                </p>
+              </div>
+            </div>
           )}
         </div>
       </div>
