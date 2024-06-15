@@ -1,113 +1,182 @@
+"use client";
+
+import { ConnectKitButton } from "connectkit";
 import Image from "next/image";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { sepolia } from "viem/chains";
+import { useAccount, useBalance, useConnect, useWriteContract } from "wagmi";
+import { injected } from "wagmi/connectors";
+
+import Navbar from "@/components/Navbar";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export default function Home() {
+  const [transferAmount, setTransferAmount] = useState("");
+  const [receiverAddress, setReceiverAddress] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [started, setStarted] = useState(false);
+  const [errors, setErrors] = useState("");
+  const [completed, setCompleted] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  const { connectAsync } = useConnect();
+  const { address, isConnected } = useAccount();
+  const { writeContractAsync } = useWriteContract();
+
+  const { data } = useBalance({
+    address: address,
+  });
+  const accountBalance = data?.formatted;
+
+  const handleTransfer = async () => {
+    if (!receiverAddress) {
+      return toast.error("Please enter a receiver address");
+    }
+
+    if (!transferAmount) {
+      return toast.error("Please enter an amount to transfer");
+    }
+
+    try {
+      // if (!address) {
+      //   await connectAsync({ chainId: sepolia.id, connector: injected() });
+      // }
+
+      const data = await writeContractAsync({
+        chainId: sepolia.id,
+        address: `0x${
+          receiverAddress.includes("0x")
+            ? receiverAddress.slice(2)
+            : receiverAddress
+        }`, // change to recipient address
+        functionName: "transfer",
+        abi: [
+          {
+            inputs: [
+              { internalType: "address", name: "recipient", type: "address" },
+              { internalType: "uint256", name: "amount", type: "uint256" },
+            ],
+            name: "transfer",
+            outputs: [{ internalType: "bool", name: "", type: "bool" }],
+            stateMutability: "nonpayable",
+            type: "function",
+          },
+        ],
+        args: [receiverAddress, parseInt(transferAmount) * 1000000],
+      });
+
+      console.log(data);
+      setCompleted(true);
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
+  // 0x041e918230046462f29643d2FFe0e191531154fc
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  if (!isMounted) return null;
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">src/app/page.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:size-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
+    <div
+      className="h-full overflow-hidden"
+      style={{
+        background: "linear-gradient(180deg, #ffdead 0%, #e1d77d 100%)",
+      }}
+    >
+      <Navbar />
+
+      <div className="h-[calc(100vh-82px)] flex flex-col mx-auto justify-center items-center px-3 sm:px-0 overflow-hidden">
+        <div className="fixed -right-72 top-[80px] opacity-60">
+          <div className="relative w-[695px] h-[1024px]">
+            <Image src="/widget.svg" fill alt="eth" />
+          </div>
+        </div>
+
+        <div className="shadow-xl rounded-xl border-2 border-mainBg w-full max-w-xl p-3 bg-[#fadfb5] z-40">
+          <div className="rounded-tl-xl rounded-tr-xl transition-all shadow-sm relative border border-mainBg p-4 w-full flex items-center gap-4">
+            <Image src="/eth.svg" width={40} height={40} alt="eth" />
+
+            <div className="flex flex-col">
+              <p className="text-xs text-gray-500">AVAILABLE TO TRANSFER</p>
+              <p className="font-bold">{isConnected ? accountBalance : 0.0}</p>
+            </div>
+          </div>
+
+          <div className="border-x border-b border-mainBg p-4 w-full flex items-center gap-3">
+            <Input
+              value={receiverAddress ? receiverAddress : ""}
+              onChange={(e) => setReceiverAddress(e.target.value)}
+              className="border-none outline-none placeholder:text-gray-500 text-black text-lg focus-visible:ring-0 focus-visible:ring-offset-0 font-semibold placeholder:font-medium bg-[#fadfb5]"
+              placeholder="Recipient Address"
+              type="text"
+              disabled={loading}
             />
-          </a>
+          </div>
+
+          <div className="border-x border-b border-mainBg p-4 w-full flex items-center gap-3 rounded-bl-xl rounded-br-xl">
+            <Input
+              value={transferAmount ?? ""}
+              onChange={(e) => setTransferAmount(e.target.value)}
+              className="border-none outline-none placeholder:text-gray-500 text-black text-xl focus-visible:ring-0 focus-visible:ring-offset-0 font-semibold placeholder:font-medium bg-[#fadfb5]"
+              placeholder="0.0"
+              type="number"
+              disabled={loading}
+            />
+
+            <button
+              disabled={loading}
+              onClick={() => {
+                if (!isConnected) {
+                  toast.error("Please connect your wallet first");
+                } else setTransferAmount(accountBalance ? accountBalance : "");
+              }}
+              className="bg-[#9b923b] hover:bg-[#a99f44] text-white/90 px-2 py-1 w-fit text-xs font-medium cursor-pointer transition-all rounded-md ring-offset-[#fadfb5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mainBg focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+            >
+              MAX
+            </button>
+          </div>
+
+          <div className="mt-5 w-full text-xs space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-gray-500 uppercase">Protocol Fee</p>
+              <p>0.01 %</p>
+            </div>
+            <div className="flex items-center justify-between">
+              <p className="text-gray-500 uppercase">APR</p>
+              <p>3.45 %</p>
+            </div>
+          </div>
+
+          {isConnected ? (
+            <Button
+              disabled={loading}
+              onClick={handleTransfer}
+              className="mt-5 rounded-xl w-full h-[52px] text-lg font-medium bg-[#9b923b] hover:bg-[#a99f44] text-white/90 transition-all uppercase ring-offset-[#fadfb5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mainBg focus-visible:ring-offset-2"
+            >
+              Transfer
+            </Button>
+          ) : (
+            <ConnectKitButton.Custom>
+              {({ show }) => {
+                return (
+                  <Button
+                    onClick={show}
+                    className="mt-5 rounded-xl w-full h-[52px] text-lg font-medium bg-[#9b923b] hover:bg-[#a99f44] text-white/90 uppercase transition-all ring-offset-[#fadfb5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mainBg focus-visible:ring-offset-2"
+                  >
+                    Connect Wallet
+                  </Button>
+                );
+              }}
+            </ConnectKitButton.Custom>
+          )}
         </div>
       </div>
-
-      <div className="relative z-[-1] flex place-items-center before:absolute before:h-[300px] before:w-full before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-full after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 sm:before:w-[480px] sm:after:w-[240px] before:lg:h-[360px]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className="mb-32 grid text-center lg:mb-0 lg:w-full lg:max-w-5xl lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Docs{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Learn{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Templates{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Explore starter templates for Next.js.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Deploy{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-balance text-sm opacity-50">
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
+    </div>
   );
 }
